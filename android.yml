@@ -1,0 +1,252 @@
+name: Gerar APK Android
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar arquivos do repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Manter a mesma assinatura entre versões
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: sintonia-debug-keystore-v1
+
+      - name: Montar o projeto Android
+        env:
+          RUN: ${{ github.run_number }}
+        run: |
+          mkdir -p app/www
+          cp index.html app/www/index.html
+          cd app
+          npm init -y > /dev/null
+          npm install @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/app@8
+          cat > capacitor.config.json <<'JSON'
+          {
+            "appId": "app.sintonia.player",
+            "appName": "Sintonia",
+            "webDir": "www",
+            "server": { "androidScheme": "http", "cleartext": true },
+            "android": { "allowMixedContent": true, "backgroundColor": "#0D1322" }
+          }
+          JSON
+          npx cap add android
+          cat > android/app/src/main/java/app/sintonia/player/MainActivity.java <<'JAVA'
+          package app.sintonia.player;
+
+          import android.os.Bundle;
+          import android.view.WindowManager;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebResourceResponse;
+          import android.webkit.WebView;
+          import com.getcapacitor.Bridge;
+          import com.getcapacitor.BridgeActivity;
+          import com.getcapacitor.BridgeWebViewClient;
+          import java.io.ByteArrayInputStream;
+          import java.io.InputStream;
+          import java.net.HttpURLConnection;
+          import java.net.URL;
+          import java.util.HashMap;
+          import java.util.List;
+          import java.util.Map;
+
+          public class MainActivity extends BridgeActivity {
+
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                  Bridge b = getBridge();
+                  if (b != null && b.getWebView() != null) {
+                      b.getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
+                      b.setWebViewClient(new SintoniaClient(b));
+                  }
+              }
+
+              /** Busca listas, guias e streams pelo lado nativo, sem as travas de CORS do navegador. */
+              static class SintoniaClient extends BridgeWebViewClient {
+                  SintoniaClient(Bridge bridge) { super(bridge); }
+
+                  @Override
+                  public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
+                      String scheme = req.getUrl().getScheme();
+                      String host = req.getUrl().getHost();
+                      boolean external = host != null && !"localhost".equals(host)
+                          && ("http".equals(scheme) || "https".equals(scheme));
+                      if (!external || req.isForMainFrame()) return super.shouldInterceptRequest(view, req);
+                      String method = req.getMethod() == null ? "GET" : req.getMethod().toUpperCase();
+                      if ("OPTIONS".equals(method)) return reply(200, "OK", "text/plain", null, new HashMap<>(), empty());
+                      if (!"GET".equals(method)) return super.shouldInterceptRequest(view, req);
+                      try {
+                          URL u = new URL(req.getUrl().toString());
+                          HttpURLConnection c = null;
+                          int code = 0;
+                          for (int i = 0; i < 8; i++) {
+                              c = (HttpURLConnection) u.openConnection();
+                              c.setInstanceFollowRedirects(false);
+                              c.setConnectTimeout(15000);
+                              c.setReadTimeout(30000);
+                              for (Map.Entry<String, String> h : req.getRequestHeaders().entrySet()) {
+                                  String k = h.getKey();
+                                  if (k == null) continue;
+                                  String lk = k.toLowerCase();
+                                  if (lk.equals("origin") || lk.equals("referer") || lk.equals("accept-encoding") || lk.startsWith("sec-")) continue;
+                                  c.setRequestProperty(k, h.getValue());
+                              }
+                              code = c.getResponseCode();
+                              if (code >= 300 && code < 400) {
+                                  String loc = c.getHeaderField("Location");
+                                  c.disconnect();
+                                  if (loc == null) break;
+                                  u = new URL(u, loc);
+                                  continue;
+                              }
+                              break;
+                          }
+                          if (c == null || (code >= 300 && code < 400) || code < 100 || code > 599) {
+                              return reply(502, "Bad Gateway", "text/plain", null, new HashMap<>(), empty());
+                          }
+                          String msg = c.getResponseMessage();
+                          if (msg == null || msg.trim().isEmpty()) msg = code < 400 ? "OK" : "Error";
+                          String mime = "application/octet-stream";
+                          String enc = null;
+                          String ct = c.getContentType();
+                          if (ct != null) {
+                              String[] parts = ct.split(";");
+                              mime = parts[0].trim();
+                              for (String p : parts) {
+                                  p = p.trim();
+                                  if (p.toLowerCase().startsWith("charset=")) enc = p.substring(8).replace("\"", "");
+                              }
+                          }
+                          InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();
+                          if (in == null) in = empty();
+                          Map<String, String> headers = new HashMap<>();
+                          for (Map.Entry<String, List<String>> e : c.getHeaderFields().entrySet()) {
+                              String k = e.getKey();
+                              if (k == null || e.getValue() == null || e.getValue().isEmpty()) continue;
+                              String lk = k.toLowerCase();
+                              if (lk.startsWith("access-control") || lk.equals("content-encoding") || lk.equals("content-length")
+                                  || lk.equals("transfer-encoding") || lk.equals("connection") || lk.equals("set-cookie")) continue;
+                              headers.put(k, e.getValue().get(0));
+                          }
+                          return reply(code, msg, mime, enc, headers, in);
+                      } catch (Exception ex) {
+                          return reply(502, "Bad Gateway", "text/plain", null, new HashMap<>(), empty());
+                      }
+                  }
+
+                  private static InputStream empty() { return new ByteArrayInputStream(new byte[0]); }
+
+                  private static WebResourceResponse reply(int code, String msg, String mime, String enc, Map<String, String> h, InputStream in) {
+                      h.put("Access-Control-Allow-Origin", "*");
+                      h.put("Access-Control-Allow-Headers", "*");
+                      h.put("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+                      h.put("Access-Control-Expose-Headers", "*");
+                      return new WebResourceResponse(mime, enc, code, msg, h, in);
+                  }
+              }
+          }
+          JAVA
+          cat > patch.py <<'PY'
+          import re, pathlib, os
+          R = pathlib.Path('android/app/src/main')
+          run = os.environ.get('RUN', '1')
+          # Manifesto: TV, tráfego http e banner
+          m = (R / 'AndroidManifest.xml').read_text()
+          m = m.replace('<application\n', '<application\n        android:usesCleartextTraffic="true"\n        android:banner="@drawable/tv_banner"\n', 1)
+          m = m.replace('<category android:name="android.intent.category.LAUNCHER" />',
+                        '<category android:name="android.intent.category.LAUNCHER" />\n                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />', 1)
+          m = m.replace('<!-- Permissions -->', '<!-- Permissions -->\n    <uses-feature android:name="android.software.leanback" android:required="false" />\n    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />', 1)
+          assert 'LEANBACK_LAUNCHER' in m and 'usesCleartextTraffic' in m
+          (R / 'AndroidManifest.xml').write_text(m)
+          # Versão
+          g = pathlib.Path('android/app/build.gradle')
+          t = g.read_text()
+          t = re.sub(r'versionCode \d+', 'versionCode ' + run, t)
+          t = re.sub(r'versionName "[^"]*"', 'versionName "1.0.' + run + '"', t)
+          g.write_text(t)
+          # Ícones e banner
+          res = R / 'res'
+          logo = '''<group android:translateX="30" android:translateY="24" android:scaleX="1.2" android:scaleY="1.2">
+                  <path android:fillColor="#FFB547" android:pathData="M16,26a4,4 0,1 0,8 0a4,4 0,1 0,-8 0z"/>
+                  <path android:strokeColor="#FFB547" android:strokeWidth="3.5" android:strokeLineCap="round" android:pathData="M11,18a13,13 0,0 1,18 0M5,12a21,21 0,0 1,30 0"/>
+              </group>'''
+          fg = f'''<?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+              {logo}
+          </vector>
+          '''
+          (res / 'drawable' / 'sintonia_logo.xml').write_text(fg)
+          (res / 'values' / 'sintonia_colors.xml').write_text('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="sintonia_bg">#0D1322</color>\n</resources>\n')
+          icon = '''<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/sintonia_bg"/>
+              <foreground android:drawable="@drawable/sintonia_logo"/>
+          </adaptive-icon>
+          '''
+          for n in ('ic_launcher.xml', 'ic_launcher_round.xml'):
+              (res / 'mipmap-anydpi-v26' / n).write_text(icon)
+          bars = ['#E8E8E8', '#F2D544', '#4FD3E8', '#53D769', '#E055D8', '#F04848', '#3E5BF0']
+          strip = '\n    '.join(f'<path android:fillColor="{c}" android:pathData="M{i*320/7:.2f},170h{320/7+0.5:.2f}v10h-{320/7+0.5:.2f}z"/>' for i, c in enumerate(bars))
+          banner = f'''<?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="320dp" android:height="180dp" android:viewportWidth="320" android:viewportHeight="180">
+              <path android:fillColor="#0D1322" android:pathData="M0,0h320v180h-320z"/>
+              <group android:translateX="112" android:translateY="22" android:scaleX="2.4" android:scaleY="2.4">
+                  <path android:fillColor="#FFB547" android:pathData="M16,26a4,4 0,1 0,8 0a4,4 0,1 0,-8 0z"/>
+                  <path android:strokeColor="#FFB547" android:strokeWidth="3.5" android:strokeLineCap="round" android:pathData="M11,18a13,13 0,0 1,18 0M5,12a21,21 0,0 1,30 0"/>
+              </group>
+              {strip}
+          </vector>
+          '''
+          (res / 'drawable' / 'tv_banner.xml').write_text(banner)
+          # Abertura escura com o logo
+          s = (res / 'values' / 'styles.xml').read_text()
+          s = s.replace('<item name="android:background">@drawable/splash</item>',
+            '<item name="android:background">@color/sintonia_bg</item>\n        <item name="windowSplashScreenBackground">@color/sintonia_bg</item>\n        <item name="windowSplashScreenAnimatedIcon">@drawable/sintonia_logo</item>\n        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>')
+          assert 'sintonia_bg' in s
+          (res / 'values' / 'styles.xml').write_text(s)
+          print('Projeto Android ajustado. Versão 1.0.' + run)
+          PY
+          python3 patch.py
+          npx cap sync android
+
+      - name: Compilar o APK
+        working-directory: app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../../Sintonia.apk
+
+      - name: Publicar o APK para download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v1.0.${{ github.run_number }}"
+          gh release create "$TAG" Sintonia.apk \
+            --title "Sintonia $TAG" \
+            --notes "Versão de teste gerada automaticamente." \
+            --latest
