@@ -47,7 +47,8 @@ jobs:
             "appName": "Sintonia",
             "webDir": "www",
             "server": { "androidScheme": "http", "cleartext": true },
-            "android": { "allowMixedContent": true, "backgroundColor": "#0D1322" }
+            "android": { "allowMixedContent": true, "backgroundColor": "#0D1322" },
+            "overrideUserAgent": "VLC/3.0.21 LibVLC/3.0.21"
           }
           JSON
           npx cap add android
@@ -113,6 +114,7 @@ jobs:
                                   if (lk.equals("origin") || lk.equals("referer") || lk.equals("accept-encoding") || lk.startsWith("sec-")) continue;
                                   c.setRequestProperty(k, h.getValue());
                               }
+                              c.setRequestProperty("User-Agent", "VLC/3.0.21 LibVLC/3.0.21");
                               code = c.getResponseCode();
                               if (code >= 300 && code < 400) {
                                   String loc = c.getHeaderField("Location");
