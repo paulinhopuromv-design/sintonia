@@ -649,6 +649,7 @@ async function fetchT(url, ms = 30000) {
   try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return r; }
   catch (e) {
     if (e.name === 'AbortError') throw new Error('O servidor demorou demais para responder. Tente de novo em instantes.');
+    if (/HTTP 40[13]/.test(e.message)) throw new Error('O servidor recusou o acesso (' + e.message + '). Confira usuário e senha. Também acontece quando a assinatura venceu, quando todas as telas do plano estão em uso, ou quando o provedor bloqueia o download da lista M3U (nesse caso, use a aba Xtream Codes).');
     if (/^HTTP/.test(e.message)) throw new Error('O servidor respondeu com erro (' + e.message + '). Confira o endereço e os dados de acesso.');
     let msg = 'Não foi possível conectar ao servidor. Confira o endereço e sua conexão.';
     if (location.protocol === 'https:' && /^http:/i.test(url)) msg += ' Este endereço usa http, e páginas seguras (https) bloqueiam esse tipo de conexão.';
@@ -1068,13 +1069,21 @@ async function connect() {
     const url = $('#f-url').value.trim();
     if (!/^https?:\/\//i.test(url)) { onbErr = 'Cole o link completo da lista, começando com http:// ou https://.'; return showOnboarding(S.playlists.length > 0); }
     pl = { id, type: 'm3u', name: name || 'Minha lista', url };
+    try {
+      const u = new URL(url); const us = u.searchParams.get('username'), pw = u.searchParams.get('password');
+      if (us && pw) pl = { id, type: 'xtream', name: name || 'Minha lista', server: normServer(u.origin + u.pathname.replace(/\/[^\/]*$/, '')), user: us, pass: pw, m3uUrl: url };
+    } catch (e) {}
   } else {
     const f = $('#f-file').files[0];
     if (!f) { onbErr = 'Escolha um arquivo .m3u para continuar.'; return showOnboarding(S.playlists.length > 0); }
     pl = { id, type: 'file', name: name || f.name.replace(/\.[^.]+$/, '') };
     pl._text = await f.text();
   }
-  try { await loadPlaylist(pl, true); onbErr = ''; }
+  try {
+    try { await loadPlaylist(pl, true); }
+    catch (e) { if (!pl.m3uUrl) throw e; pl = { id: pl.id, type: 'm3u', name: pl.name, url: pl.m3uUrl }; await loadPlaylist(pl, true); }
+    onbErr = '';
+  }
   catch (e) { onbErr = e.message || String(e); hideLoading(); showOnboarding(S.playlists.length > 0); }
 }
 async function useDemo() {
