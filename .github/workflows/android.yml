@@ -64,7 +64,11 @@ jobs:
           import com.getcapacitor.BridgeActivity;
           import com.getcapacitor.BridgeWebViewClient;
           import java.io.ByteArrayInputStream;
+          import java.io.ByteArrayOutputStream;
           import java.io.InputStream;
+          import java.nio.charset.StandardCharsets;
+          import java.util.regex.Matcher;
+          import java.util.regex.Pattern;
           import java.net.HttpURLConnection;
           import java.net.URL;
           import java.util.HashMap;
@@ -143,6 +147,12 @@ jobs:
                           }
                           InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();
                           if (in == null) in = empty();
+                          String path = u.getPath() == null ? "" : u.getPath().toLowerCase();
+                          if (code < 400 && (mime.toLowerCase().contains("mpegurl") || path.endsWith(".m3u8"))) {
+                              in = new ByteArrayInputStream(rewritePlaylist(readAll(in), u).getBytes(StandardCharsets.UTF_8));
+                              mime = "application/vnd.apple.mpegurl";
+                              enc = "utf-8";
+                          }
                           Map<String, String> headers = new HashMap<>();
                           for (Map.Entry<String, List<String>> e : c.getHeaderFields().entrySet()) {
                               String k = e.getKey();
@@ -159,6 +169,38 @@ jobs:
                   }
 
                   private static InputStream empty() { return new ByteArrayInputStream(new byte[0]); }
+
+                  private static final Pattern URI_ATTR = Pattern.compile("URI=\"([^\"]+)\"");
+
+                  private static String readAll(InputStream in) throws java.io.IOException {
+                      ByteArrayOutputStream out = new ByteArrayOutputStream();
+                      byte[] buf = new byte[8192];
+                      int n;
+                      while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                      in.close();
+                      return new String(out.toByteArray(), StandardCharsets.UTF_8);
+                  }
+
+                  private static String abs(URL base, String ref) {
+                      try { return new URL(base, ref.trim()).toString(); } catch (Exception e) { return ref; }
+                  }
+
+                  /** HLS playlists served after a redirect use paths relative to the final server; make them absolute. */
+                  static String rewritePlaylist(String text, URL base) {
+                      StringBuilder sb = new StringBuilder();
+                      for (String line : text.split("\n", -1)) {
+                          String l = line.trim();
+                          if (l.isEmpty()) { sb.append(line).append('\n'); continue; }
+                          if (l.startsWith("#")) {
+                              Matcher m = URI_ATTR.matcher(line);
+                              StringBuffer out = new StringBuffer();
+                              while (m.find()) m.appendReplacement(out, Matcher.quoteReplacement("URI=\"" + abs(base, m.group(1)) + "\""));
+                              m.appendTail(out);
+                              sb.append(out).append('\n');
+                          } else sb.append(abs(base, l)).append('\n');
+                      }
+                      return sb.toString();
+                  }
 
                   private static WebResourceResponse reply(int code, String msg, String mime, String enc, Map<String, String> h, InputStream in) {
                       h.put("Access-Control-Allow-Origin", "*");
