@@ -298,6 +298,11 @@ select.input{appearance:auto}
 .p-list .ch:focus-visible{background:rgba(255,181,71,.18);outline-color:#FFB547}
 .p-list .prog{background:rgba(255,255,255,.18)}
 .p-list .prog i{background:#FFB547}
+.player .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.24);color:#fff}
+.player .btn:hover{background:rgba(255,255,255,.2)}
+.player .btn.primary{background:#FFB547;border-color:transparent;color:#231400}
+.player .btn:focus-visible{outline:3px solid #FFB547;outline-offset:3px}
+.p-err .tech{font-size:12px;opacity:.55;margin-top:18px;word-break:break-word}
 .nextup{position:absolute;right:24px;bottom:120px;background:rgba(10,14,26,.92);border:1px solid rgba(255,255,255,.15);border-radius:var(--r-md);padding:16px;display:flex;gap:14px;align-items:center}
 
 /* Mobile */
@@ -1265,35 +1270,35 @@ function loadSrc(it) {
   if (!url) return failPlay();
   const isHls = /\.m3u8(\?|$)/i.test(url), isFile = /\.(mp4|mkv|webm|mov|m4v|avi)(\?|$)/i.test(url);
   P.engines = isHls ? ['hls', 'native'] : isFile ? ['native', 'mts'] : it.kind === 'live' ? ['mts', 'hls', 'native'] : ['native', 'hls'];
-  P.url = url; nextEngine();
+  P.url = url; P.errs = []; nextEngine();
 }
 function nextEngine() {
-  const it = P.item; const eng = P.engines.shift();
+  const it = P.item; const eng = P.engines.shift(); P.eng = eng;
   if (!eng) return failPlay();
   if (P.hls) { try { P.hls.destroy(); } catch (e) {} P.hls = null; }
   if (P.mts) { try { P.mts.destroy(); } catch (e) {} P.mts = null; }
-  clearTimeout(P.stallT); P.stallT = setTimeout(() => { if (video.readyState < 2) nextEngine(); }, 20000);
+  clearTimeout(P.stallT); P.stallT = setTimeout(() => { if (video.readyState < 2) { P.errs.push(eng + ': sem resposta em 20 s'); nextEngine(); } }, 20000);
   const go = () => video.play().catch(() => { spin(false); updateUi(); });
   if (eng === 'hls') {
     if (window.Hls && Hls.isSupported()) {
       let retries = 0; const h = new Hls({ enableWorker: true, backBufferLength: 30, maxBufferLength: 30 }); P.hls = h;
-      h.on(Hls.Events.ERROR, (_, d) => { if (!d.fatal) return; if (d.type === Hls.ErrorTypes.NETWORK_ERROR && retries++ < 2) h.startLoad(); else if (d.type === Hls.ErrorTypes.MEDIA_ERROR && retries++ < 2) h.recoverMediaError(); else nextEngine(); });
+      h.on(Hls.Events.ERROR, (_, d) => { if (!d.fatal) return; if (d.type === Hls.ErrorTypes.NETWORK_ERROR && retries++ < 2) h.startLoad(); else if (d.type === Hls.ErrorTypes.MEDIA_ERROR && retries++ < 2) h.recoverMediaError(); else { P.errs.push('hls: ' + d.details + (d.response && d.response.code ? ' ' + d.response.code : '')); nextEngine(); } });
       h.on(Hls.Events.MANIFEST_PARSED, go); h.loadSource(P.url); h.attachMedia(video);
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) { video.onerror = () => nextEngine(); video.src = P.url; go(); }
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) { video.onerror = () => { P.errs.push('nativo hls: ' + (video.error && video.error.code)); nextEngine(); }; video.src = P.url; go(); }
     else nextEngine();
   } else if (eng === 'mts') {
     if (window.mpegts && mpegts.getFeatureList && mpegts.getFeatureList().mseLivePlayback) {
       const m = mpegts.createPlayer({ type: 'mpegts', isLive: it.kind === 'live', url: P.url }, { enableStashBuffer: false, liveBufferLatencyChasing: true, lazyLoad: false });
-      P.mts = m; m.on(mpegts.Events.ERROR, () => nextEngine()); m.attachMediaElement(video); m.load(); go();
+      P.mts = m; m.on(mpegts.Events.ERROR, (t, det, info) => { P.errs.push('ts: ' + det + (info && info.code ? ' ' + info.code : '')); nextEngine(); }); m.attachMediaElement(video); m.load(); go();
     } else nextEngine();
-  } else { video.onerror = () => nextEngine(); video.src = P.url; go(); }
+  } else { video.onerror = () => { P.errs.push('nativo: ' + (video.error && video.error.code)); nextEngine(); }; video.src = P.url; go(); }
 }
 function failPlay() {
   spin(false); clearTimeout(P.stallT);
   const live = P.item && P.item.kind === 'live';
   showPErr(`<div class="box"><h3>${live ? 'Este canal não abriu' : 'Este vídeo não abriu'}</h3>
   <p>${live ? 'O canal pode estar fora do ar no seu provedor, ou usar um formato que este aparelho não reproduz. Tente de novo ou troque o formato em Ajustes, Reprodução.' : 'O arquivo pode estar indisponível no seu provedor, ou usar um formato que este navegador não reproduz (alguns MKV, por exemplo).'}</p>
-  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn primary" data-f data-p="retry">${ic('refresh')}Tentar de novo</button>${live ? `<button class="btn" data-f data-p="chup">Próximo canal</button>` : ''}<button class="btn" data-f data-p="close">Voltar</button></div></div>`);
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn primary" data-f data-p="retry">${ic('refresh')}Tentar de novo</button>${live ? `<button class="btn" data-f data-p="chup">Próximo canal</button>` : ''}<button class="btn" data-f data-p="close">Voltar</button></div>${P.errs && P.errs.length ? `<p class="tech">Detalhe técnico: ${esc(P.errs.join(' · '))}</p>` : ''}</div>`);
 }
 function showPErr(html) { const e = $('#pErr'); if (!html) { e.classList.add('hidden'); e.innerHTML = ''; return; } e.innerHTML = html; e.classList.remove('hidden'); setTimeout(() => { const b = e.querySelector('[data-f]'); b && b.focus(); }, 30); }
 video.addEventListener('waiting', () => spin(true));
