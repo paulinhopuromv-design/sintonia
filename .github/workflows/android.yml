@@ -8,9 +8,16 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: gerar-apk
+  cancel-in-progress: true
+
 jobs:
   apk:
     runs-on: ubuntu-24.04
+    env:
+      KS_B64: ${{ secrets.SINTONIA_KEYSTORE }}
+      SNT_KEYSTORE_PASSWORD: ${{ secrets.SINTONIA_KEYSTORE_PASSWORD }}
     steps:
       - name: Baixar arquivos do repositório
         uses: actions/checkout@v5
@@ -26,7 +33,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Manter a mesma assinatura entre versões
+      - name: Manter a mesma assinatura de teste entre versões
         uses: actions/cache@v4
         with:
           path: ~/.android/debug.keystore
@@ -36,6 +43,11 @@ jobs:
         env:
           RUN: ${{ github.run_number }}
         run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            export SNT_KEYSTORE="$RUNNER_TEMP/release.jks"
+            echo "SNT_KEYSTORE=$SNT_KEYSTORE" >> "$GITHUB_ENV"
+          fi
           mkdir -p app/www
           cp index.html app/www/index.html
           cd app
@@ -79,6 +91,7 @@ jobs:
 
               @Override
               public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(SintoniaPlugin.class);
                   super.onCreate(savedInstanceState);
                   getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                   Bridge b = getBridge();
@@ -212,6 +225,53 @@ jobs:
               }
           }
           JAVA
+          cat > android/app/src/main/java/app/sintonia/player/SintoniaPlugin.java <<'JAVA'
+          package app.sintonia.player;
+
+          import android.os.Build;
+          import android.provider.Settings;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+          import java.nio.charset.StandardCharsets;
+          import java.security.MessageDigest;
+
+          /** Gives the web app a stable device code that survives reinstalls. */
+          @CapacitorPlugin(name = "Sintonia")
+          public class SintoniaPlugin extends Plugin {
+
+              @PluginMethod
+              public void info(PluginCall call) {
+                  String id = null;
+                  try { id = Settings.Secure.getString(getContext().getContentResolver(), Settings.Secure.ANDROID_ID); } catch (Exception ignored) {}
+                  if (id == null || id.isEmpty()) id = "unknown-" + Build.FINGERPRINT;
+                  String version = "";
+                  try { version = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0).versionName; } catch (Exception ignored) {}
+                  JSObject r = new JSObject();
+                  r.put("code", codeFrom(id));
+                  r.put("model", (Build.MANUFACTURER + " " + Build.MODEL).trim());
+                  r.put("version", version);
+                  call.resolve(r);
+              }
+
+              static String codeFrom(String id) {
+                  String a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+                  try {
+                      byte[] h = MessageDigest.getInstance("SHA-256").digest(("sintonia:" + id).getBytes(StandardCharsets.UTF_8));
+                      StringBuilder s = new StringBuilder("SNT-");
+                      for (int i = 0; i < 8; i++) {
+                          if (i == 4) s.append('-');
+                          s.append(a.charAt((h[i] & 0xff) % 32));
+                      }
+                      return s.toString();
+                  } catch (Exception e) {
+                      return "SNT-ERRO-0000";
+                  }
+              }
+          }
+          JAVA
           cat > patch.py <<'PY'
           import re, pathlib, os
           R = pathlib.Path('android/app/src/main')
@@ -230,6 +290,22 @@ jobs:
           t = re.sub(r'versionCode \d+', 'versionCode ' + run, t)
           t = re.sub(r'versionName "[^"]*"', 'versionName "1.0.' + run + '"', t)
           g.write_text(t)
+          # Assinatura definitiva (quando o segredo existe no GitHub)
+          if os.environ.get('SNT_KEYSTORE'):
+              t = g.read_text()
+              t = t.replace('    buildTypes {', """    signingConfigs {
+                  release {
+                      storeFile file(System.getenv("SNT_KEYSTORE"))
+                      storePassword System.getenv("SNT_KEYSTORE_PASSWORD")
+                      keyAlias "sintonia"
+                      keyPassword System.getenv("SNT_KEYSTORE_PASSWORD")
+                  }
+              }
+              buildTypes {""", 1)
+              t = t.replace('            minifyEnabled false', '            minifyEnabled false\n            signingConfig signingConfigs.release', 1)
+              assert 'signingConfigs.release' in t
+              g.write_text(t)
+              print('Assinatura definitiva ativada')
           # Ícones e banner
           res = R / 'res'
           logo = '''<group android:translateX="30" android:translateY="24" android:scaleX="1.2" android:scaleY="1.2">
@@ -281,8 +357,15 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk ../../Sintonia.apk
+          if [ -n "$SNT_KEYSTORE" ]; then
+            ./gradlew assembleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk ../../Sintonia.apk
+            echo "TIPO=assinatura definitiva" >> "$GITHUB_ENV"
+          else
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk ../../Sintonia.apk
+            echo "TIPO=assinatura de teste" >> "$GITHUB_ENV"
+          fi
 
       - name: Publicar o APK para download
         env:
@@ -291,5 +374,5 @@ jobs:
           TAG="v1.0.${{ github.run_number }}"
           gh release create "$TAG" Sintonia.apk \
             --title "Sintonia $TAG" \
-            --notes "Versão de teste gerada automaticamente." \
+            --notes "Versão gerada automaticamente ($TIPO)." \
             --latest
