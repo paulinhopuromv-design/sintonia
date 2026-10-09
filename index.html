@@ -244,7 +244,7 @@ select.input{appearance:auto}
 @keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 
 /* Toast */
-#toast{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+#toast{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:99;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
 .toast{background:var(--text);color:var(--bg);padding:12px 18px;border-radius:999px;font-weight:600;font-size:14px;box-shadow:var(--shadow);animation:pop .2s ease-out;max-width:90vw}
 
 /* Player */
@@ -342,6 +342,8 @@ select.input{appearance:auto}
 }
 .mcats{display:none}
 #onboarding{height:100%;overflow-y:auto}
+.lock{position:fixed;inset:0;z-index:95;background:var(--bg);overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:30px 20px}
+.lock-box{width:min(460px,100%)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -803,7 +805,7 @@ function vHome(v) {
   const favs = [...S.favs].map(itemByKey).filter(Boolean);
   const nn = feat ? nowNext(feat) : null;
   const hr = new Date().getHours(); const hi = hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite';
-  let html = '';
+  let html = licBanner();
   if (feat) {
     html += `<section class="hero"><canvas id="heroCv"></canvas><div class="chnum">${String(feat.num).padStart(2, '0')}</div>
       <div class="meta"><span class="live-dot">Ao vivo agora</span><h1>${esc(feat.name)}</h1>
@@ -917,7 +919,6 @@ function vFavs(v) {
 /* ===== Ajustes ===== */
 function vSettings(v) {
   const pl = activePl(); const acc = S.data.account;
-  const left = Math.max(0, 7 - Math.floor((Date.now() - S.trialStart) / DAY));
   const typeName = { xtream: 'Xtream Codes', m3u: 'Link M3U', file: 'Arquivo M3U', demo: 'Demonstração' };
   const theme = (id, l) => `<button class="${S.theme === id ? 'on' : ''}" data-f data-theme="${id}">${l}</button>`;
   v.innerHTML = `<div class="head"><div><h1>Ajustes</h1></div></div><div class="set">
@@ -926,11 +927,12 @@ function vSettings(v) {
       ${p.id === S.activeId ? `<button class="btn sm icon" data-f data-reload aria-label="Atualizar lista">${ic('refresh')}</button>` : `<button class="btn sm" data-f data-usepl="${p.id}">Usar</button>`}
       <button class="btn sm icon" data-f data-delpl="${p.id}" aria-label="Remover lista">${ic('trash')}</button></div>`).join('')}
     <button class="btn" data-f data-addpl style="width:100%;margin-top:6px">${ic('plus')}Adicionar lista</button></section>
-  <section class="card"><h3>Sua conta Sintonia</h3><p>Use este código para ativar o app neste aparelho.</p>
+  <section class="card"><h3>Sua licença Sintonia</h3><p>Informe este código ao comprar ou renovar.</p>
     <div class="code">${S.device}</div>
-    <div class="rowx" style="margin-top:12px"><span class="k">Plano</span><span class="v">Teste grátis · ${left} ${left === 1 ? 'dia restante' : 'dias restantes'}</span></div>
-    <div class="field" style="margin:14px 0 10px"><label for="lic">Chave de ativação</label><input class="input" id="lic" placeholder="XXXX-XXXX-XXXX" data-f autocomplete="off"></div>
-    <button class="btn primary" data-f data-activate style="width:100%">Ativar</button></section>
+    <div class="rowx" style="margin-top:12px"><span class="k">Situação</span><span class="v">${licLabel()}</span></div>
+    <div class="field" style="margin:14px 0 10px"><label for="lic">Chave de ativação</label><input class="input" id="lic" placeholder="XXXX-XXXX-XXXX-XXXX" data-f autocomplete="off" autocapitalize="characters"></div>
+    <button class="btn primary" data-f data-activate style="width:100%">Ativar ou renovar</button>
+    ${LIC.wa ? `<button class="btn" data-f data-buy style="width:100%;margin-top:10px">Comprar pelo WhatsApp</button>` : ''}</section>
   ${acc ? `<section class="card"><h3>Assinatura no provedor</h3><p>Informações enviadas pelo servidor da sua lista.</p>
     <div class="rowx"><span class="k">Vencimento</span><span class="v">${acc.exp ? new Date(acc.exp).toLocaleDateString('pt-BR') : 'Sem data'}</span></div>
     <div class="rowx"><span class="k">Telas simultâneas</span><span class="v">${acc.max ?? '—'}</span></div></section>` : ''}
@@ -1433,6 +1435,7 @@ video.addEventListener('dblclick', fullscreen); pcv.addEventListener('dblclick',
 /* ========= Navegação por setas (controle remoto) ========= */
 function navScope() {
   if (modalOpen()) return $('#modal');
+  if (lockOpen()) return $('#lock');
   if (pOpen()) { if ($('#pList').classList.contains('open')) return $('#pList'); if (!$('#pErr').classList.contains('hidden')) return $('#pErr'); if (!$('#nextUp').classList.contains('hidden')) return $('#nextUp'); return $('#pUi'); }
   if (!$('#onboarding').classList.contains('hidden')) return $('#onboarding');
   return $('#app');
@@ -1584,7 +1587,10 @@ document.addEventListener('click', async (e) => {
     if (S.activeId === pl.id) { S.activeId = null; store.del('active'); S.data = null; if (S.playlists[0]) return loadPlaylist(S.playlists[0], false).catch(() => showOnboarding(false)); onbErr = ''; return showOnboarding(false); }
     toast('Lista removida'); return render();
   }
-  if (d.activate != null) { const v = ($('#lic').value || '').trim(); toast(v ? 'Chave não reconhecida. Confira os caracteres e tente de novo.' : 'Digite a chave de ativação que você recebeu.'); return; }
+  if (d.activate != null) { const r = await activateKey($('#lic').value); toast(r.msg); if (r.ok) render(); return; }
+  if (d.buy != null) return buyWhats();
+  if (d.lockact != null) return lockActivate();
+  if (d.lockretry != null) return lockRetry();
   if (d.fmt) { S.liveFmt = d.fmt; store.set('liveFmt', d.fmt); toast(d.fmt === 'ts' ? 'Canais ao vivo em MPEG-TS' : 'Canais ao vivo em HLS'); render(); setTimeout(() => $(`[data-fmt="${d.fmt}"]`).focus(), 20); return; }
   if (d.theme) { S.theme = d.theme; store.set('theme', d.theme); applyTheme(); render(); setTimeout(() => $(`[data-theme="${d.theme}"]`).focus(), 20); return; }
   if (d.lock != null) {
@@ -1629,10 +1635,129 @@ window.addEventListener('pagehide', flushProgress);
 function applyTheme() { const r = document.documentElement; if (S.theme === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', S.theme); }
 applyTheme();
 setInterval(() => { if (!S.data || pOpen() || modalOpen()) return; if (S.view === 'live') { renderPreview(); } }, 60000);
-(async function boot() {
+/* ========= Licença ========= */
+const LIC = { url: 'https://bdaeoqehbibeutjuxtvs.supabase.co', key: 'sb_publishable_kFIeyA_NgIoVcL1Y97oD0Q_U3fElYfp', wa: '' };
+S.lic = store.get('lic', null);
+let devInfo = { code: S.device };
+async function rpc(fn, body) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 10000);
+  try {
+    const r = await fetch(LIC.url + '/rest/v1/rpc/' + fn, { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', apikey: LIC.key }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+async function loadDevice() {
+  try {
+    if (NATIVE && Capacitor.Plugins && Capacitor.Plugins.Sintonia) {
+      const i = await Capacitor.Plugins.Sintonia.info();
+      if (i && /^SNT-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(i.code)) { devInfo = i; if (S.device !== i.code) { S.device = i.code; store.set('device', i.code); S.lic = null; store.del('lic'); } }
+    }
+  } catch (e) {}
+  return devInfo;
+}
+function saveLic(r) { if (!r || !r.status || r.status === 'invalid' || r.status === 'unknown') return; r.checkedAt = Date.now(); S.lic = r; store.set('lic', r); }
+async function checkLicense() {
+  try { saveLic(await rpc('app_check', { p_code: S.device, p_model: devInfo.model || null, p_version: devInfo.version || null })); return true; }
+  catch (e) { return false; }
+}
+function licEnd() { const l = S.lic; if (!l) return 0; return Date.parse(l.status === 'active' ? l.expires_at : l.status === 'trial' ? l.trial_ends : 0) || 0; }
+function licState() {
+  const l = S.lic;
+  if (!l) return { ok: false, reason: 'offline' };
+  if (l.status === 'blocked') return { ok: false, reason: 'blocked' };
+  const end = licEnd();
+  if (end > Date.now()) return Date.now() - l.checkedAt < 7 * DAY ? { ok: true } : { ok: false, reason: 'offline' };
+  return { ok: false, reason: 'expired' };
+}
+const daysLeft = () => Math.max(0, Math.ceil((licEnd() - Date.now()) / DAY));
+const fmtD = (ms) => new Date(ms).toLocaleDateString('pt-BR');
+function licLabel() {
+  const l = S.lic; if (!l) return NATIVE ? 'Não verificada' : 'Teste grátis';
+  if (l.status === 'blocked') return 'Bloqueada';
+  const n = daysLeft();
+  if (l.status === 'active' && n > 0) return `Ativa até ${fmtD(licEnd())} (plano ${l.plan || ''})`;
+  if (l.status === 'trial' && n > 0) return `Teste grátis · ${n} ${n === 1 ? 'dia restante' : 'dias restantes'}`;
+  return 'Vencida';
+}
+function licBanner() {
+  const l = S.lic; if (!l) return '';
+  const n = daysLeft();
+  if (l.status === 'trial' && n > 0) return `<div class="card" style="display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap;margin-bottom:22px;padding:16px 20px"><span><b>Teste grátis:</b> ${n} ${n === 1 ? 'dia restante' : 'dias restantes'}</span><button class="btn sm primary" data-f data-go="settings">Ativar licença</button></div>`;
+  if (l.status === 'active' && n > 0 && n <= 5) return `<div class="card" style="display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap;margin-bottom:22px;padding:16px 20px"><span><b>Sua licença vence em ${n} ${n === 1 ? 'dia' : 'dias'}.</b> Renove para não perder o acesso.</span><button class="btn sm primary" data-f data-go="settings">Renovar</button></div>`;
+  return '';
+}
+async function activateKey(raw) {
+  const k = String(raw || '').trim();
+  if (!k) return { ok: false, msg: 'Digite a chave de ativação que você recebeu.' };
+  try {
+    const r = await rpc('app_activate', { p_code: S.device, p_key: k });
+    if (!r.ok) return { ok: false, msg: r.error || 'Não foi possível ativar.' };
+    saveLic(r);
+    return { ok: true, msg: r.already ? 'Esta chave já está ativa neste aparelho.' : 'Licença ativada até ' + fmtD(licEnd()) + '. Bom proveito!' };
+  } catch (e) { return { ok: false, msg: 'Sem conexão com o servidor de licenças. Confira a internet e tente de novo.' }; }
+}
+function buyWhats() {
+  const msg = encodeURIComponent('Olá! Quero comprar ou renovar o Sintonia. Meu código é ' + S.device);
+  window.open('https://wa.me/' + LIC.wa.replace(/\D/g, '') + '?text=' + msg, '_blank');
+}
+let lockCb = null;
+function showLock(reason, cb) {
+  lockCb = cb || lockCb;
+  hideLoading(); if (pOpen()) closePlayer(); if (modalOpen()) closeModal();
+  let el = $('#lock'); if (!el) { el = document.createElement('div'); el.id = 'lock'; el.className = 'lock'; document.body.appendChild(el); }
+  const T = {
+    expired: ['Seu acesso terminou', S.lic && S.lic.expires_at ? 'Sua licença venceu. Renove para continuar assistindo.' : 'O teste grátis de 7 dias acabou. Ative uma licença para continuar assistindo.'],
+    blocked: ['Este aparelho está bloqueado', 'Fale com o suporte para entender o que aconteceu.'],
+    offline: ['Sem conexão com o servidor', 'Precisamos confirmar sua licença. Confira a internet e tente de novo.']
+  }[reason] || ['Ative o Sintonia', ''];
+  el.innerHTML = `<div class="lock-box"><div style="display:flex;align-items:center;gap:10px;color:var(--accent)"><svg viewBox="0 0 40 40" width="30" height="30" fill="none"><circle cx="20" cy="26" r="4" fill="currentColor"/><path d="M11 18a13 13 0 0 1 18 0M5 12a21 21 0 0 1 30 0" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg><b style="font-family:var(--display);font-size:18px;color:var(--text)">Sintonia</b></div>
+    <h1 style="font-size:30px;margin-top:20px">${T[0]}</h1><p class="muted" style="margin:8px 0 22px">${T[1]}</p>
+    <div class="muted small">Código deste aparelho</div><div class="code" style="margin:4px 0 20px">${S.device}</div>
+    <div class="err hidden" id="lockErr" role="alert"></div>
+    <div class="field"><label for="lockKey">Chave de ativação</label><input class="input" id="lockKey" placeholder="XXXX-XXXX-XXXX-XXXX" data-f autocomplete="off" autocapitalize="characters"></div>
+    <button class="btn primary" data-f data-lockact style="width:100%;height:52px">Ativar</button>
+    ${reason === 'offline' ? `<button class="btn" data-f data-lockretry style="width:100%;margin-top:10px">${ic('refresh')}Tentar de novo</button>` : ''}
+    ${LIC.wa ? `<button class="btn" data-f data-buy style="width:100%;margin-top:10px">Comprar pelo WhatsApp</button>` : `<p class="muted small" style="margin-top:16px">Para comprar, fale com seu revendedor e informe o código acima.</p>`}</div>`;
+  el.classList.remove('hidden');
+  setTimeout(() => { const i = $('#lockKey'); i && i.focus(); }, 50);
+}
+function hideLock() { const el = $('#lock'); if (el) el.classList.add('hidden'); }
+const lockOpen = () => { const el = $('#lock'); return !!el && !el.classList.contains('hidden'); };
+async function lockActivate() {
+  const b = $('[data-lockact]'); b.disabled = true; b.textContent = 'Ativando…';
+  const r = await activateKey($('#lockKey').value);
+  if (r.ok) { hideLock(); toast(r.msg); const cb = lockCb; lockCb = null; cb && cb(); }
+  else { const e = $('#lockErr'); e.textContent = r.msg; e.classList.remove('hidden'); b.disabled = false; b.textContent = 'Ativar'; }
+}
+async function lockRetry() {
+  showLoading('Verificando licença…'); await checkLicense(); hideLoading();
+  const st = licState(); if (st.ok) { hideLock(); const cb = lockCb; lockCb = null; cb && cb(); } else showLock(st.reason);
+}
+async function enforce() {
+  if (!NATIVE) return;
+  await checkLicense(); const st = licState();
+  if (!st.ok && !lockOpen()) showLock(st.reason, () => { if (!S.data) startApp(); });
+  else if (S.data && S.view === 'settings' && !modalOpen()) render();
+}
+setInterval(enforce, 6 * 3600e3);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.lic && Date.now() - S.lic.checkedAt > 3600e3) enforce(); });
+document.addEventListener('keydown', (e) => { if (lockOpen() && e.key === 'Enter' && e.target.id === 'lockKey') { e.preventDefault(); lockActivate(); } }, true);
+
+async function startApp() {
   const pl = activePl();
   if (pl) { try { await loadPlaylist(pl, false); } catch (e) { hideLoading(); onbErr = e.message; showOnboarding(false); } }
   else showOnboarding(false);
+}
+(async function boot() {
+  await loadDevice();
+  if (NATIVE) {
+    showLoading('Verificando licença…');
+    await checkLicense();
+    const st = licState();
+    if (!st.ok) return showLock(st.reason, startApp);
+  } else checkLicense().then(() => { if (S.view === 'settings' && S.data) render(); });
+  startApp();
 })();
 
 </script>

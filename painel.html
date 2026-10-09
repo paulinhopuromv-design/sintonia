@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Sintonia — Painel de licenças</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0D1322;--bg2:#111a2e;--surface:#172038;--surface2:#1E2945;--line:#283454;--text:#ECEFF7;--muted:#8D97B4;
+  --accent:#FFB547;--accent-ink:#231400;--accent-soft:rgba(255,181,71,.14);--live:#FF4D5E;--ok:#3CCB8D;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;--body:"Figtree","Segoe UI",system-ui,sans-serif;
+  box-sizing:border-box;color-scheme:dark;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+:root[data-theme="light"]{--bg:#EEF1F7;--bg2:#E4E9F3;--surface:#fff;--surface2:#F4F6FB;--line:#D6DCE9;--text:#141A2B;--muted:#5A6380;--accent:#B86A00;--accent-ink:#fff;--accent-soft:rgba(184,106,0,.12);--live:#D92139;--ok:#16875A;color-scheme:light}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#EEF1F7;--bg2:#E4E9F3;--surface:#fff;--surface2:#F4F6FB;--line:#D6DCE9;--text:#141A2B;--muted:#5A6380;--accent:#B86A00;--accent-ink:#fff;--accent-soft:rgba(184,106,0,.12);--live:#D92139;--ok:#16875A;color-scheme:light}}
+:root[data-theme="dark"]{--bg:#0D1322;--bg2:#111a2e;--surface:#172038;--surface2:#1E2945;--line:#283454;--text:#ECEFF7;--muted:#8D97B4;--accent:#FFB547;--accent-ink:#231400;--accent-soft:rgba(255,181,71,.14);--live:#FF4D5E;--ok:#3CCB8D;color-scheme:dark}
+*,*::before,*::after{box-sizing:inherit}
+html{min-height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.1;letter-spacing:-.01em}
+.muted{color:var(--muted)}.small{font-size:13px}.hidden{display:none!important}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 18px;border-radius:999px;font-weight:700;background:var(--surface2);border:1px solid var(--line);white-space:nowrap}
+.btn:hover{filter:brightness(1.1)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.sm{height:32px;padding:0 12px;font-size:13px}
+.btn.danger{color:var(--live)}
+.btn[disabled]{opacity:.5;pointer-events:none}
+.input{height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);padding:0 12px;width:100%}
+.input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:13px;font-weight:600;color:var(--muted)}
+.err{background:color-mix(in srgb,var(--live) 14%,transparent);border:1px solid color-mix(in srgb,var(--live) 40%,transparent);padding:10px 12px;border-radius:10px;font-size:14px;margin-bottom:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px}
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;padding:24px}
+.login .card{width:min(420px,100%);padding:30px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--accent);margin-bottom:22px}
+.brand b{font-family:var(--display);font-size:19px;color:var(--text)}
+.brand span{font-size:13px;color:var(--muted);font-weight:600;border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+/* app */
+header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar{max-width:1280px;margin:0 auto;padding:14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.bar .brand{margin:0}
+.bar .grow{flex:1}
+.who{display:flex;align-items:center;gap:10px;font-size:14px}
+.badge{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;background:var(--accent-soft);color:var(--accent)}
+.tabs{max-width:1280px;margin:0 auto;padding:0 22px;display:flex;gap:4px;overflow-x:auto}
+.tab{padding:12px 14px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--text);border-color:var(--accent)}
+main{max-width:1280px;margin:0 auto;padding:26px 22px 60px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-bottom:26px}
+.stat .n{font-family:var(--display);font-weight:800;font-size:40px;line-height:1;margin-top:8px;font-variant-numeric:tabular-nums}
+.stat .l{color:var(--muted);font-size:14px;font-weight:600}
+.stat.hi .n{color:var(--accent)}
+.grid2{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:18px;align-items:start}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;width:100%}
+.seg button{flex:1;height:36px;border-radius:999px;font-size:14px;font-weight:700;color:var(--muted)}
+.seg button.on{background:var(--text);color:var(--bg)}
+.keys{margin-top:16px;border:1px dashed var(--accent);border-radius:14px;padding:14px;background:var(--accent-soft)}
+.keys code{display:block;font-family:ui-monospace,Consolas,monospace;font-size:15px;font-weight:700;letter-spacing:.04em;padding:3px 0}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:760px}
+th{text-align:left;font-size:12px;color:var(--muted);font-weight:700;padding:12px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td code{font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:13px;white-space:nowrap}
+td .acts{display:flex;gap:6px;justify-content:flex-end}
+.pill{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.pill.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.pill.warn{background:var(--accent-soft);color:var(--accent)}
+.pill.bad{background:color-mix(in srgb,var(--live) 16%,transparent);color:var(--live)}
+.pill.off{background:var(--surface2);color:var(--muted)}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.toolbar .input{max-width:360px}
+.section-h{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:28px 0 12px;flex-wrap:wrap}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.modal{position:fixed;inset:0;z-index:20;background:rgba(6,9,18,.6);backdrop-filter:blur(4px);display:grid;place-items:center;padding:20px}
+.modal .card{width:min(420px,100%)}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{background:var(--text);color:var(--bg);padding:11px 18px;border-radius:999px;font-weight:600;font-size:14px}
+@media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}.bar{padding:12px 16px}main{padding:20px 16px 40px}.tabs{padding:0 10px}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast" aria-live="polite"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script>
+'use strict';
+const SUPA_URL = 'https://bdaeoqehbibeutjuxtvs.supabase.co';
+const SUPA_KEY = 'sb_publishable_kFIeyA_NgIoVcL1Y97oD0Q_U3fElYfp';
+const COST = { mensal: 1, anual: 10 };
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fd = (s) => s ? new Date(s).toLocaleDateString('pt-BR') : '—';
+const fdt = (s) => s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+const LOGO = '<svg viewBox="0 0 40 40" width="30" height="30" fill="none"><circle cx="20" cy="26" r="4" fill="currentColor"/><path d="M11 18a13 13 0 0 1 18 0M5 12a21 21 0 0 1 30 0" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>';
+function toast(m) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; $('#toast').appendChild(t); setTimeout(() => t.remove(), 2800); }
+async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg || 'Copiado'); } catch (e) { prompt('Copie o texto:', text); } }
+const friendly = (e) => { const m = (e && (e.message || e.error_description || e.msg)) || String(e); if (/Invalid login/i.test(m)) return 'E-mail ou senha incorretos.'; if (/already registered/i.test(m)) return 'Este e-mail já tem conta. Use "Entrar".'; if (/Password should be/i.test(m)) return 'A senha precisa ter pelo menos 6 caracteres.'; if (/Failed to fetch|NetworkError/i.test(m)) return 'Sem conexão com o servidor. Confira a internet.'; return m; };
+
+if (!window.supabase) { document.getElementById('root').innerHTML = '<div class="login"><div class="card"><h2>Não foi possível carregar o painel</h2><p class="muted">Confira sua conexão e recarregue a página.</p></div></div>'; throw new Error('supabase-js missing'); }
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+const A = { me: null, tab: 'overview', plan: 'mensal', lastKeys: [], q: '', dq: '' };
+async function call(fn, args) { const { data, error } = await sb.rpc(fn, args || {}); if (error) throw error; return data; }
+
+/* ---------- Login ---------- */
+let signup = false, loginErr = '';
+function vLogin() {
+  $('#root').innerHTML = `<div class="login"><div class="card">
+    <div class="brand">${LOGO}<b>Sintonia</b><span>Painel</span></div>
+    <h2 style="font-size:26px">${signup ? 'Criar conta' : 'Entrar'}</h2>
+    <p class="muted" style="margin:6px 0 20px">${signup ? 'Revendedores: crie sua conta e aguarde a liberação.' : 'Acesse para gerar chaves e acompanhar clientes.'}</p>
+    ${loginErr ? `<div class="err" role="alert">${esc(loginErr)}</div>` : ''}
+    <div class="field"><label for="em">E-mail</label><input class="input" id="em" type="email" autocomplete="email"></div>
+    <div class="field"><label for="pw">Senha</label><input class="input" id="pw" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}"></div>
+    <button class="btn primary" id="go" style="width:100%;height:46px">${signup ? 'Criar conta' : 'Entrar'}</button>
+    <button class="btn" id="sw" style="width:100%;margin-top:10px;background:transparent">${signup ? 'Já tenho conta' : 'Criar conta de revendedor'}</button>
+  </div></div>`;
+  const go = async () => {
+    const email = $('#em').value.trim(), password = $('#pw').value;
+    if (!email || !password) { loginErr = 'Preencha e-mail e senha.'; return vLogin(); }
+    $('#go').disabled = true;
+    try {
+      const r = signup ? await sb.auth.signUp({ email, password }) : await sb.auth.signInWithPassword({ email, password });
+      if (r.error) throw r.error;
+      if (signup && !r.data.session) { loginErr = 'Conta criada. Confirme seu e-mail e depois entre.'; signup = false; return vLogin(); }
+      loginErr = ''; await enter();
+    } catch (e) { loginErr = friendly(e); vLogin(); }
+  };
+  $('#go').onclick = go; $('#pw').onkeydown = (e) => { if (e.key === 'Enter') go(); };
+  $('#sw').onclick = () => { signup = !signup; loginErr = ''; vLogin(); };
+  setTimeout(() => $('#em').focus(), 30);
+}
+
+async function enter() {
+  try { A.me = await call('panel_me'); } catch (e) { loginErr = friendly(e); await sb.auth.signOut(); return vLogin(); }
+  if (A.me.role === 'none') return vLogin();
+  if (A.me.role === 'pending') return vPending();
+  shell();
+}
+async function logout() { await sb.auth.signOut(); A.me = null; vLogin(); }
+
+function vPending() {
+  $('#root').innerHTML = `<div class="login"><div class="card"><div class="brand">${LOGO}<b>Sintonia</b><span>Painel</span></div>
+    <h2>Conta criada</h2><p class="muted" style="margin:8px 0 20px">Avise o administrador para liberar seu acesso de revendedor. Depois disso, é só entrar de novo.</p>
+    <button class="btn primary" id="rt" style="width:100%">Verificar de novo</button><button class="btn" id="lo" style="width:100%;margin-top:10px">Sair</button></div></div>`;
+  $('#rt').onclick = enter; $('#lo').onclick = logout;
+}
+
+/* ---------- Estrutura ---------- */
+function shell() {
+  const admin = A.me.role === 'admin';
+  const tabs = [['overview', 'Visão geral'], ['keys', 'Chaves'], ...(admin ? [['devices', 'Aparelhos'], ['resellers', 'Revendedores']] : [])];
+  $('#root').innerHTML = `<header><div class="bar"><div class="brand">${LOGO}<b>Sintonia</b><span>Painel</span></div><div class="grow"></div>
+    <div class="who"><span class="badge">${admin ? 'Administrador' : 'Revendedor · ' + esc(A.me.name)}</span>${admin ? '' : `<span id="cr" class="muted"></span>`}<button class="btn sm" id="lo">Sair</button></div></div>
+    <nav class="tabs">${tabs.map(([id, l]) => `<button class="tab ${A.tab === id ? 'on' : ''}" data-tab="${id}">${l}</button>`).join('')}</nav></header><main id="view"></main>`;
+  $('#lo').onclick = logout;
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { A.tab = b.dataset.tab; shell(); });
+  route();
+}
+async function refreshMe() { try { A.me = await call('panel_me'); const c = $('#cr'); if (c && A.me.role === 'reseller') c.textContent = A.me.credits + ' créditos'; } catch (e) {} }
+function route() { refreshMe(); ({ overview: vOverview, keys: vKeys, devices: vDevices, resellers: vResellers }[A.tab] || vOverview)($('#view')); }
+
+/* ---------- Visão geral ---------- */
+async function vOverview(v) {
+  v.innerHTML = '<p class="muted">Carregando…</p>';
+  try {
+    const s = await call('panel_stats'); const admin = A.me.role === 'admin';
+    const items = admin
+      ? [['Clientes ativos', s.active, 1], ['Em teste grátis', s.trial], ['Vencem em 7 dias', s.expiring], ['Chaves não usadas', s.unused], ['Aparelhos registrados', s.devices], ['Abriram o app hoje', s.seen_today]]
+      : [['Créditos disponíveis', s.credits, 1], ['Clientes ativos', s.active], ['Vencem em 7 dias', s.expiring], ['Chaves não usadas', s.unused]];
+    v.innerHTML = `<div class="stats">${items.map(([l, n, hi]) => `<div class="card stat ${hi ? 'hi' : ''}"><div class="l">${l}</div><div class="n">${n ?? 0}</div></div>`).join('')}</div>
+      <div class="card"><h3>Como funciona</h3><p class="muted" style="margin:8px 0 0">Gere uma chave na aba Chaves e envie ao cliente. Ele abre o Sintonia, vai em Ajustes, digita a chave em "Sua licença" e toca em Ativar. A chave fica presa ao aparelho dele. Para renovar, basta gerar e ativar outra chave: os dias são somados ao que ainda resta.${admin ? '' : ` Cada chave mensal usa ${COST.mensal} crédito e cada anual usa ${COST.anual}.`}</p></div>`;
+  } catch (e) { v.innerHTML = `<div class="err">${esc(friendly(e))}</div>`; }
+}
+
+/* ---------- Chaves ---------- */
+function licStatus(l) {
+  if (l.revoked) return '<span class="pill bad">Revogada</span>';
+  if (!l.device_code) return '<span class="pill off">Não usada</span>';
+  if (new Date(l.expires_at) > new Date()) {
+    const d = Math.ceil((new Date(l.expires_at) - new Date()) / 864e5);
+    return `<span class="pill ${d <= 7 ? 'warn' : 'ok'}">Ativa até ${fd(l.expires_at)}</span>`;
+  }
+  return '<span class="pill bad">Vencida</span>';
+}
+function vKeys(v) {
+  const admin = A.me.role === 'admin';
+  v.innerHTML = `<div class="grid2">
+    <div class="card"><h3>Gerar chaves</h3><p class="muted small" style="margin:6px 0 16px">Cada chave ativa 1 aparelho.</p>
+      <div class="field"><label>Plano</label><div class="seg"><button data-plan="mensal" class="${A.plan === 'mensal' ? 'on' : ''}">Mensal · 30 dias</button><button data-plan="anual" class="${A.plan === 'anual' ? 'on' : ''}">Anual · 365 dias</button></div></div>
+      <div class="field"><label for="qty">Quantidade</label><input class="input" id="qty" type="number" min="1" max="100" value="1"></div>
+      <div class="field"><label for="note">Cliente ou observação (opcional)</label><input class="input" id="note" placeholder="Ex.: João, WhatsApp 11 9…" maxlength="200"></div>
+      ${admin ? '' : `<p class="small muted" id="cost" style="margin:-4px 0 12px"></p>`}
+      <button class="btn primary" id="gen" style="width:100%">Gerar</button>
+      <div id="out"></div>
+    </div>
+    <div><div class="toolbar"><input class="input" id="q" placeholder="Buscar chave, aparelho ou cliente" value="${esc(A.q)}"><button class="btn sm" id="rf">Atualizar</button></div><div id="list"><p class="muted">Carregando…</p></div></div>
+  </div>`;
+  const updCost = () => { const c = $('#cost'); if (c) { const n = Math.max(1, +$('#qty').value || 1); c.textContent = `Vai usar ${COST[A.plan] * n} crédito(s). Você tem ${A.me.credits}.`; } };
+  v.querySelectorAll('[data-plan]').forEach(b => b.onclick = () => { A.plan = b.dataset.plan; v.querySelectorAll('[data-plan]').forEach(x => x.classList.toggle('on', x === b)); updCost(); });
+  $('#qty').oninput = updCost; updCost();
+  $('#gen').onclick = async () => {
+    const qty = Math.min(100, Math.max(1, Math.floor(+$('#qty').value || 1)));
+    $('#gen').disabled = true;
+    try {
+      const keys = await call('panel_create_keys', { p_plan: A.plan, p_qty: qty, p_note: $('#note').value.trim() || null });
+      A.lastKeys = keys; showKeys(); loadList(); refreshMe().then(updCost);
+      toast(qty === 1 ? 'Chave gerada' : qty + ' chaves geradas');
+    } catch (e) { toast(friendly(e)); }
+    $('#gen').disabled = false;
+  };
+  let t; $('#q').oninput = (e) => { A.q = e.target.value; clearTimeout(t); t = setTimeout(loadList, 250); };
+  $('#rf').onclick = loadList;
+  showKeys(); loadList();
+}
+function clientMsg(keys) {
+  return `Sua licença Sintonia (${A.plan === 'anual' ? 'anual' : 'mensal'}):\n${keys.join('\n')}\n\nComo ativar: abra o Sintonia, vá em Ajustes, digite a chave em "Sua licença" e toque em Ativar.`;
+}
+function showKeys() {
+  const o = $('#out'); if (!o || !A.lastKeys.length) return;
+  o.innerHTML = `<div class="keys"><div class="small muted" style="margin-bottom:6px">Chaves novas</div>${A.lastKeys.map(k => `<code>${esc(k)}</code>`).join('')}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm" id="cpk">Copiar chaves</button><button class="btn sm primary" id="cpm">Copiar mensagem para o cliente</button></div></div>`;
+  $('#cpk').onclick = () => copy(A.lastKeys.join('\n'), 'Chaves copiadas');
+  $('#cpm').onclick = () => copy(clientMsg(A.lastKeys), 'Mensagem copiada');
+}
+async function loadList() {
+  const box = $('#list'); if (!box) return;
+  try {
+    const rows = await call('panel_licenses', { p_search: A.q.trim() || null, p_limit: 300 });
+    const admin = A.me.role === 'admin';
+    if (!rows.length) { box.innerHTML = `<div class="tbl-wrap"><div class="empty">${A.q ? 'Nada encontrado.' : 'Nenhuma chave gerada ainda.'}</div></div>`; return; }
+    box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>Chave</th><th>Plano</th><th>Situação</th><th>Aparelho</th><th>Cliente</th>${admin ? '<th>Revendedor</th>' : ''}<th>Criada</th><th></th></tr></thead><tbody>
+      ${rows.map(l => `<tr><td><code>${esc(l.key)}</code></td><td>${l.plan === 'anual' ? 'Anual' : 'Mensal'}</td><td>${licStatus(l)}</td>
+        <td>${l.device_code ? `<code>${esc(l.device_code)}</code><div class="small muted">${esc(l.model || '')}</div>` : '<span class="muted">—</span>'}</td>
+        <td>${esc(l.note || '')}</td>${admin ? `<td>${esc(l.reseller || 'Você')}</td>` : ''}<td class="small muted">${fd(l.created_at)}</td>
+        <td><div class="acts"><button class="btn sm" data-cp="${esc(l.key)}">Copiar</button><button class="btn sm ${l.revoked ? '' : 'danger'}" data-rv="${esc(l.key)}" data-to="${l.revoked ? 'false' : 'true'}">${l.revoked ? 'Reativar' : 'Revogar'}</button></div></td></tr>`).join('')}
+    </tbody></table></div>`;
+    box.querySelectorAll('[data-cp]').forEach(b => b.onclick = () => copy(b.dataset.cp, 'Chave copiada'));
+    box.querySelectorAll('[data-rv]').forEach(b => b.onclick = async () => {
+      const to = b.dataset.to === 'true';
+      if (to && !confirm('Revogar esta chave? O cliente perde o acesso na próxima verificação do app.')) return;
+      try { await call('panel_revoke', { p_key: b.dataset.rv, p_revoked: to }); toast(to ? 'Chave revogada' : 'Chave reativada'); loadList(); } catch (e) { toast(friendly(e)); }
+    });
+  } catch (e) { box.innerHTML = `<div class="err">${esc(friendly(e))}</div>`; }
+}
+
+/* ---------- Aparelhos ---------- */
+function vDevices(v) {
+  v.innerHTML = `<div class="toolbar"><input class="input" id="dq" placeholder="Buscar código ou modelo" value="${esc(A.dq)}"><button class="btn sm" id="rf">Atualizar</button></div><div id="dl"><p class="muted">Carregando…</p></div>`;
+  let t; $('#dq').oninput = (e) => { A.dq = e.target.value; clearTimeout(t); t = setTimeout(loadDevices, 250); };
+  $('#rf').onclick = loadDevices; loadDevices();
+}
+async function loadDevices() {
+  const box = $('#dl'); if (!box) return;
+  try {
+    const rows = await call('panel_devices', { p_search: A.dq.trim() || null, p_limit: 300 });
+    if (!rows.length) { box.innerHTML = '<div class="tbl-wrap"><div class="empty">Nenhum aparelho ainda. Eles aparecem quando alguém abre o app.</div></div>'; return; }
+    const st = (r) => ({ active: `<span class="pill ok">Ativo até ${fd(r.expires_at)}</span>`, trial: `<span class="pill warn">Teste até ${fd(r.trial_ends)}</span>`, expired: '<span class="pill bad">Vencido</span>', blocked: '<span class="pill bad">Bloqueado</span>' }[r.status] || esc(r.status));
+    box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>Código</th><th>Modelo</th><th>Versão</th><th>Situação</th><th>Primeiro acesso</th><th>Último acesso</th><th></th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td><code>${esc(r.code)}</code></td><td>${esc(r.model || '—')}</td><td class="small">${esc(r.app_version || '—')}</td><td>${st(r)}</td><td class="small muted">${fd(r.first_seen)}</td><td class="small muted">${fdt(r.last_seen)}</td>
+      <td><div class="acts"><button class="btn sm" data-tr="${esc(r.code)}">+7 dias de teste</button><button class="btn sm ${r.blocked ? '' : 'danger'}" data-bl="${esc(r.code)}" data-to="${r.blocked ? 'false' : 'true'}">${r.blocked ? 'Desbloquear' : 'Bloquear'}</button></div></td></tr>`).join('')}
+    </tbody></table></div>`;
+    box.querySelectorAll('[data-tr]').forEach(b => b.onclick = async () => { try { await call('panel_extend_trial', { p_code: b.dataset.tr, p_days: 7 }); toast('Teste estendido em 7 dias'); loadDevices(); } catch (e) { toast(friendly(e)); } });
+    box.querySelectorAll('[data-bl]').forEach(b => b.onclick = async () => {
+      const to = b.dataset.to === 'true'; if (to && !confirm('Bloquear este aparelho? Ele deixa de abrir o app na próxima verificação.')) return;
+      try { await call('panel_block_device', { p_code: b.dataset.bl, p_blocked: to }); toast(to ? 'Aparelho bloqueado' : 'Aparelho desbloqueado'); loadDevices(); } catch (e) { toast(friendly(e)); }
+    });
+  } catch (e) { box.innerHTML = `<div class="err">${esc(friendly(e))}</div>`; }
+}
+
+/* ---------- Revendedores ---------- */
+function ask(title, fields, ok) {
+  return new Promise(res => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="card"><h3>${esc(title)}</h3><div style="margin-top:16px">${fields.map((f, i) => `<div class="field"><label for="f${i}">${esc(f.label)}</label><input class="input" id="f${i}" type="${f.type || 'text'}" value="${esc(f.value ?? '')}"></div>`).join('')}</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn" data-x>Cancelar</button><button class="btn primary" data-ok>${esc(ok)}</button></div></div>`;
+    document.body.appendChild(m);
+    const done = (v) => { m.remove(); res(v); };
+    m.querySelector('[data-x]').onclick = () => done(null);
+    m.querySelector('[data-ok]').onclick = () => done(fields.map((_, i) => m.querySelector('#f' + i).value));
+    m.onclick = (e) => { if (e.target === m) done(null); };
+    setTimeout(() => m.querySelector('#f0').focus(), 30);
+  });
+}
+async function vResellers(v) {
+  v.innerHTML = '<p class="muted">Carregando…</p>';
+  try {
+    const [pend, rs] = await Promise.all([call('panel_pending_users'), call('panel_resellers')]);
+    v.innerHTML = `<div class="card" style="margin-bottom:8px"><h3>Como adicionar um revendedor</h3><p class="muted" style="margin:8px 0 0">Envie a ele o endereço deste painel. Ele clica em "Criar conta de revendedor", e a conta aparece aqui em "Aguardando liberação". Você libera, dá um nome e os créditos iniciais.</p></div>
+      <div class="section-h"><h3>Aguardando liberação</h3></div>
+      ${pend.length ? `<div class="tbl-wrap"><table><thead><tr><th>E-mail</th><th>Criou a conta em</th><th></th></tr></thead><tbody>${pend.map(p => `<tr><td>${esc(p.email)}</td><td class="small muted">${fdt(p.created_at)}</td><td><div class="acts"><button class="btn sm primary" data-ap="${p.user_id}" data-em="${esc(p.email)}">Liberar como revendedor</button></div></td></tr>`).join('')}</tbody></table></div>` : '<div class="tbl-wrap"><div class="empty">Nenhum pedido no momento.</div></div>'}
+      <div class="section-h"><h3>Revendedores</h3></div>
+      ${rs.length ? `<div class="tbl-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Créditos</th><th>Clientes ativos</th><th>Chaves geradas</th><th>Situação</th><th></th></tr></thead><tbody>${rs.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.email || '—')}</td><td><b>${r.credits}</b></td><td>${r.active_clients}</td><td>${r.keys_total}</td><td>${r.active ? '<span class="pill ok">Ativo</span>' : '<span class="pill off">Pausado</span>'}</td>
+        <td><div class="acts"><button class="btn sm primary" data-cr="${r.id}" data-nm="${esc(r.name)}">Créditos</button><button class="btn sm" data-ac="${r.id}" data-to="${r.active ? 'false' : 'true'}">${r.active ? 'Pausar' : 'Reativar'}</button></div></td></tr>`).join('')}</tbody></table></div>` : '<div class="tbl-wrap"><div class="empty">Nenhum revendedor ainda.</div></div>'}`;
+    v.querySelectorAll('[data-ap]').forEach(b => b.onclick = async () => {
+      const r = await ask('Liberar ' + b.dataset.em, [{ label: 'Nome do revendedor', value: '' }, { label: 'Créditos iniciais', type: 'number', value: '0' }], 'Liberar');
+      if (!r) return; if (!r[0].trim()) return toast('Informe um nome');
+      try { await call('panel_approve_reseller', { p_user: b.dataset.ap, p_name: r[0].trim(), p_credits: Math.max(0, +r[1] || 0) }); toast('Revendedor liberado'); vResellers(v); } catch (e) { toast(friendly(e)); }
+    });
+    v.querySelectorAll('[data-cr]').forEach(b => b.onclick = async () => {
+      const r = await ask('Créditos para ' + b.dataset.nm, [{ label: 'Quantidade (use negativo para retirar)', type: 'number', value: '10' }, { label: 'Motivo (opcional)', value: '' }], 'Confirmar');
+      if (!r) return; const n = Math.trunc(+r[0]); if (!n) return toast('Informe uma quantidade');
+      try { await call('panel_add_credits', { p_reseller: b.dataset.cr, p_amount: n, p_reason: r[1].trim() || null }); toast('Créditos atualizados'); vResellers(v); } catch (e) { toast(friendly(e)); }
+    });
+    v.querySelectorAll('[data-ac]').forEach(b => b.onclick = async () => {
+      try { await call('panel_set_reseller_active', { p_reseller: b.dataset.ac, p_active: b.dataset.to === 'true' }); toast('Situação atualizada'); vResellers(v); } catch (e) { toast(friendly(e)); }
+    });
+  } catch (e) { v.innerHTML = `<div class="err">${esc(friendly(e))}</div>`; }
+}
+
+/* ---------- Início ---------- */
+(async () => {
+  const { data } = await sb.auth.getSession();
+  if (data.session) enter(); else vLogin();
+})();
+</script>
+</body>
+</html>
