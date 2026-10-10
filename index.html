@@ -1647,10 +1647,11 @@ async function rpc(fn, body) {
     return await r.json();
   } finally { clearTimeout(t); }
 }
+const withTimeout = (p, ms, label) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(label + ': sem resposta em ' + Math.round(ms / 1000) + ' s')), ms))]);
 async function loadDevice() {
   try {
     if (NATIVE && Capacitor.Plugins && Capacitor.Plugins.Sintonia) {
-      const i = await Capacitor.Plugins.Sintonia.info();
+      const i = await withTimeout(Capacitor.Plugins.Sintonia.info(), 4000, 'aparelho');
       if (i && /^SNT-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(i.code)) { devInfo = i; if (S.device !== i.code) { S.device = i.code; store.set('device', i.code); S.lic = null; store.del('lic'); } }
     }
   } catch (e) {}
@@ -1658,8 +1659,8 @@ async function loadDevice() {
 }
 function saveLic(r) { if (!r || !r.status || r.status === 'invalid' || r.status === 'unknown') return; r.checkedAt = Date.now(); S.lic = r; store.set('lic', r); }
 async function checkLicense() {
-  try { saveLic(await rpc('app_check', { p_code: S.device, p_model: devInfo.model || null, p_version: devInfo.version || null })); return true; }
-  catch (e) { return false; }
+  try { saveLic(await withTimeout(rpc('app_check', { p_code: S.device, p_model: devInfo.model || null, p_version: devInfo.version || null }), 12000, 'servidor')); S.licErr = ''; return true; }
+  catch (e) { S.licErr = (e && (e.name === 'AbortError' ? 'servidor: tempo esgotado' : e.message)) || String(e); return false; }
 }
 function licEnd() { const l = S.lic; if (!l) return 0; return Date.parse(l.status === 'active' ? l.expires_at : l.status === 'trial' ? l.trial_ends : 0) || 0; }
 function licState() {
@@ -1673,7 +1674,8 @@ function licState() {
 const daysLeft = () => Math.max(0, Math.ceil((licEnd() - Date.now()) / DAY));
 const fmtD = (ms) => new Date(ms).toLocaleDateString('pt-BR');
 function licLabel() {
-  const l = S.lic; if (!l) return NATIVE ? 'Não verificada' : 'Teste grátis';
+  if (!NATIVE) return 'Licença válida apenas no app instalado';
+  const l = S.lic; if (!l) return 'Não verificada';
   if (l.status === 'blocked') return 'Bloqueada';
   const n = daysLeft();
   if (l.status === 'active' && n > 0) return `Ativa até ${fmtD(licEnd())} (plano ${l.plan || ''})`;
@@ -1688,10 +1690,11 @@ function licBanner() {
   return '';
 }
 async function activateKey(raw) {
+  if (!NATIVE) return { ok: false, msg: 'A ativação é feita no app instalado no aparelho (Android, TV Box ou Smart TV).' };
   const k = String(raw || '').trim();
   if (!k) return { ok: false, msg: 'Digite a chave de ativação que você recebeu.' };
   try {
-    const r = await rpc('app_activate', { p_code: S.device, p_key: k });
+    const r = await withTimeout(rpc('app_activate', { p_code: S.device, p_key: k }), 15000, 'servidor');
     if (!r.ok) return { ok: false, msg: r.error || 'Não foi possível ativar.' };
     saveLic(r);
     return { ok: true, msg: r.already ? 'Esta chave já está ativa neste aparelho.' : 'Licença ativada até ' + fmtD(licEnd()) + '. Bom proveito!' };
@@ -1718,7 +1721,8 @@ function showLock(reason, cb) {
     <div class="field"><label for="lockKey">Chave de ativação</label><input class="input" id="lockKey" placeholder="XXXX-XXXX-XXXX-XXXX" data-f autocomplete="off" autocapitalize="characters"></div>
     <button class="btn primary" data-f data-lockact style="width:100%;height:52px">Ativar</button>
     ${reason === 'offline' ? `<button class="btn" data-f data-lockretry style="width:100%;margin-top:10px">${ic('refresh')}Tentar de novo</button>` : ''}
-    ${LIC.wa ? `<button class="btn" data-f data-buy style="width:100%;margin-top:10px">Comprar pelo WhatsApp</button>` : `<p class="muted small" style="margin-top:16px">Para comprar, fale com seu revendedor e informe o código acima.</p>`}</div>`;
+    ${LIC.wa ? `<button class="btn" data-f data-buy style="width:100%;margin-top:10px">Comprar pelo WhatsApp</button>` : `<p class="muted small" style="margin-top:16px">Para comprar, fale com seu revendedor e informe o código acima.</p>`}
+    ${reason === 'offline' && S.licErr ? `<p class="muted" style="font-size:12px;opacity:.7;margin-top:14px;word-break:break-word">Detalhe técnico: ${esc(S.licErr)}</p>` : ''}</div>`;
   el.classList.remove('hidden');
   setTimeout(() => { const i = $('#lockKey'); i && i.focus(); }, 50);
 }
@@ -1756,7 +1760,7 @@ async function startApp() {
     await checkLicense();
     const st = licState();
     if (!st.ok) return showLock(st.reason, startApp);
-  } else checkLicense().then(() => { if (S.view === 'settings' && S.data) render(); });
+  }
   startApp();
 })();
 
