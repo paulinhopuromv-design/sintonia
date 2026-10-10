@@ -1030,6 +1030,7 @@ async function openDetail(key) {
 /* ========= Onboarding ========= */
 let onbTab = 'xtream', onbErr = '';
 function showOnboarding(canCancel) {
+  hideLoading();
   $('#app').classList.add('hidden');
   const o = $('#onboarding'); o.classList.remove('hidden');
   const tab = (id, l) => `<button class="tab ${onbTab === id ? 'on' : ''}" data-f data-tab="${id}">${l}</button>`;
