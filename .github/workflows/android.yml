@@ -110,7 +110,8 @@ jobs:
                       String scheme = req.getUrl().getScheme();
                       String host = req.getUrl().getHost();
                       boolean external = host != null && !"localhost".equals(host)
-                          && ("http".equals(scheme) || "https".equals(scheme));
+                          && ("http".equals(scheme) || "https".equals(scheme))
+                          && !host.endsWith(".supabase.co");
                       if (!external || req.isForMainFrame()) return super.shouldInterceptRequest(view, req);
                       String method = req.getMethod() == null ? "GET" : req.getMethod().toUpperCase();
                       if ("OPTIONS".equals(method)) return reply(200, "OK", "text/plain", null, new HashMap<>(), empty());
@@ -218,7 +219,7 @@ jobs:
                   private static WebResourceResponse reply(int code, String msg, String mime, String enc, Map<String, String> h, InputStream in) {
                       h.put("Access-Control-Allow-Origin", "*");
                       h.put("Access-Control-Allow-Headers", "*");
-                      h.put("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+                      h.put("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS");
                       h.put("Access-Control-Expose-Headers", "*");
                       return new WebResourceResponse(mime, enc, code, msg, h, in);
                   }
